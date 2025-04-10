@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard - Campus Placement System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Student Dashboard</h2>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Profile Information</h5>
+                </div>
+                <div class="card-body" id="profileInfo">
+                    <p><strong>Loading profile...</strong></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Available Jobs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Company</th>
+                                    <th>Position</th>
+                                    <th>Requirements</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="availableJobs">
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading jobs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Applied Jobs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Company</th>
+                                    <th>Position</th>
+                                    <th>Status</th>
+                                    <th>Date Applied</th>
+                                </tr>
+                            </thead>
+                            <tbody id="appliedJobs">
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading applications...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Check if user is logged in
+if (!isLoggedIn()) {
+    window.location.href = '/login';
+}
+
+// Function to fetch profile data
+async function fetchProfile() {
+    try {
+        const response = await fetch('/api/profile', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const profileInfo = document.getElementById('profileInfo');
+            profileInfo.innerHTML = `
+                <p><strong>Username:</strong> ${data.user.username}</p>
+                <p><strong>User Type:</strong> ${data.user.user_type}</p>
+                <!-- Add more profile fields as needed -->
+            `;
+        } else {
+            showAlert('Failed to load profile', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('An error occurred while loading profile', 'danger');
+    }
+}
+
+// Function to fetch available jobs
+async function fetchAvailableJobs() {
+    try {
+        const response = await fetch('/api/jobs/available', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const jobsTable = document.getElementById('availableJobs');
+            
+            if (data.jobs && data.jobs.length > 0) {
+                jobsTable.innerHTML = data.jobs.map(job => `
+                    <tr>
+                        <td>${job.company}</td>
+                        <td>${job.position}</td>
+                        <td>${job.requirements}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" onclick="applyForJob(${job.id})">
+                                Apply
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                jobsTable.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center">No jobs available at the moment</td>
+                    </tr>
+                `;
+            }
+        } else {
+            showAlert('Failed to load available jobs', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('An error occurred while loading jobs', 'danger');
+    }
+}
+
+// Function to fetch applied jobs
+async function fetchAppliedJobs() {
+    try {
+        const response = await fetch('/api/jobs/applied', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const appliedTable = document.getElementById('appliedJobs');
+            
+            if (data.applications && data.applications.length > 0) {
+                appliedTable.innerHTML = data.applications.map(app => `
+                    <tr>
+                        <td>${app.company}</td>
+                        <td>${app.position}</td>
+                        <td>${app.status}</td>
+                        <td>${new Date(app.date_applied).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            } else {
+                appliedTable.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center">No applications yet</td>
+                    </tr>
+                `;
+            }
+        } else {
+            showAlert('Failed to load applied jobs', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('An error occurred while loading applications', 'danger');
+    }
+}
+
+// Function to apply for a job
+async function applyForJob(jobId) {
+    try {
+        const response = await fetch(`/api/jobs/${jobId}/apply`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (response.ok) {
+            showAlert('Successfully applied for the job!', 'success');
+            // Refresh the jobs tables
+            fetchAvailableJobs();
+            fetchAppliedJobs();
+        } else {
+            const data = await response.json();
+            showAlert(data.message || 'Failed to apply for job', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('An error occurred while applying for the job', 'danger');
+    }
+}
+
+// Load data when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    fetchProfile();
+    fetchAvailableJobs();
+    fetchAppliedJobs();
+});
+</script>
+{% endblock %} 
