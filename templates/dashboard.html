@@ -1,51 +1,207 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Dashboard</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <span class="nav-link text-light" id="username-display"></span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="logout">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-{% block content %}
-<div class="card">
-    <div class="card-header">
-        <h3>Welcome, {{ current_user.username }}!</h3>
-    </div>
-    <div class="card-body">
-        {% if current_user.user_type == 'student' %}
-            <h4>Student Dashboard</h4>
-            <p>This is your student dashboard. Here you can:</p>
-            <ul>
-                <li>View available job postings</li>
-                <li>Apply for jobs</li>
-                <li>Track your applications</li>
-                <li>Update your profile</li>
-            </ul>
-        {% elif current_user.user_type == 'employer' %}
-            <h4>Employer Dashboard</h4>
-            <p>This is your employer dashboard. Here you can:</p>
-            <ul>
-                <li>Post new job openings</li>
-                <li>View student applications</li>
-                <li>Schedule interviews</li>
-                <li>Manage your company profile</li>
-            </ul>
-        {% else %}
-            <h4>TPO Dashboard</h4>
-            <p>This is your TPO dashboard. Here you can:</p>
-            <ul>
-                <li>Manage student profiles</li>
-                <li>Manage employer profiles</li>
-                <li>View placement statistics</li>
-                <li>Schedule placement events</li>
-            </ul>
-            
-            <div class="mt-4">
-                <h5>Admin Section</h5>
-                <div class="list-group">
-                    <a href="{{ url_for('create_tpo') }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-user-plus"></i> Create TPO Account
-                    </a>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Welcome to your Dashboard</h5>
+                        <p class="card-text">This is a placeholder dashboard. The actual content will be implemented later.</p>
+                        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+                        <div id="user-info">
+                            <!-- User information will be displayed here -->
+                            <div class="text-center my-5" id="loading-spinner">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading user data...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        {% endif %}
+        </div>
     </div>
-    <div class="card-footer">
-        <p class="mb-0">You are logged in as a {{ current_user.user_type }}.</p>
-    </div>
-</div>
-{% endblock %} 
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Try to get cached user info immediately
+            const cachedUser = localStorage.getItem('user');
+            if (cachedUser) {
+                try {
+                    const userData = JSON.parse(cachedUser);
+                    document.getElementById('username-display').textContent = userData.username || '';
+                    // Skip API call if we have cached data
+                    displayUserInfo(userData);
+                    return;
+                } catch (e) {
+                    console.error("Error parsing cached user data:", e);
+                }
+            }
+            
+            // If no cached data, load from API
+            loadUserFromAPI();
+        });
+        
+        // Prevent flashing/redirect loop
+        let redirectAttempted = false;
+
+        // Check if user is logged in
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+        } else {
+            console.log("Token exists in localStorage");
+        }
+
+        // Display error message
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        // Hide error message
+        function hideError() {
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        // Function to fetch user profile from API
+        async function loadUserFromAPI() {
+            try {
+                console.log("Fetching fresh user data from API...");
+                
+                const response = await fetch('/api/profile', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                console.log("API response status:", response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log("Profile data:", data);
+                    
+                    if (data.status === 'success' && data.user) {
+                        // Hide any error message
+                        hideError();
+                        
+                        // Display user info
+                        displayUserInfo(data.user);
+                        
+                        // Update cached user data
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    } else {
+                        showError("Failed to load user data. Using cached data if available.");
+                    }
+                } else {
+                    // Try to use cached data instead
+                    const cachedUser = localStorage.getItem('user');
+                    if (cachedUser) {
+                        try {
+                            const userData = JSON.parse(cachedUser);
+                            displayUserInfo(userData);
+                        } catch (e) {
+                            console.error("Error using cached user data:", e);
+                        }
+                    } else {
+                        showError("Authentication failed. Please log in again.");
+                        
+                        // Only redirect once to prevent loops
+                        if (!redirectAttempted) {
+                            redirectAttempted = true;
+                            setTimeout(() => {
+                                localStorage.removeItem('token');
+                                localStorage.removeItem('user');
+                                window.location.href = '/login';
+                            }, 3000); // Wait 3 seconds before redirecting
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                // Try to use cached data on network error
+                const cachedUser = localStorage.getItem('user');
+                if (cachedUser) {
+                    try {
+                        const userData = JSON.parse(cachedUser);
+                        displayUserInfo(userData);
+                        showError("Network error, using cached data.");
+                    } catch (e) {
+                        console.error("Error using cached user data:", e);
+                        showError("Network error: " + error.message);
+                    }
+                } else {
+                    showError("Network error: " + error.message);
+                }
+            }
+        }
+        
+        // Display user information
+        function displayUserInfo(user) {
+            // Hide loading spinner
+            document.getElementById('loading-spinner').style.display = 'none';
+            
+            const userInfo = document.getElementById('user-info');
+            userInfo.innerHTML = `
+                <div class="card mt-4">
+                    <div class="card-header bg-primary text-white">
+                        User Information
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Username:</strong> ${user.username || 'N/A'}</p>
+                                <p><strong>User Type:</strong> ${user.user_type || 'N/A'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Name:</strong> ${user.first_name || ''} ${user.last_name || ''}</p>
+                                <p><strong>Email:</strong> ${user.email || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Also update navbar
+            document.getElementById('username-display').textContent = user.username || '';
+        }
+
+        // Logout functionality
+        document.getElementById('logout').addEventListener('click', (e) => {
+            e.preventDefault();
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        });
+    </script>
+</body>
+</html> 

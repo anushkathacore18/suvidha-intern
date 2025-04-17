@@ -14,17 +14,57 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key-here')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)  # Extend token expiration to 1 day
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
+
+# JWT error handlers
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    print("Token expired")
+    return jsonify({
+        'status': 'error',
+        'message': 'Token has expired'
+    }), 401
+
+@jwt.invalid_token_loader
+def invalid_token_callback(error):
+    print(f"Invalid token: {error}")
+    return jsonify({
+        'status': 'error',
+        'message': 'Invalid token'
+    }), 401
+
+@jwt.unauthorized_loader
+def unauthorized_callback(error):
+    print(f"Missing token: {error}")
+    return jsonify({
+        'status': 'error',
+        'message': 'Authorization header missing'
+    }), 401
 
 # User Model
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
-    user_type = db.Column(db.String(20), nullable=False)  # 'student', 'employer', or 'tpo'
+    user_type = db.Column(db.String(20), nullable=False)  # 'student', 'employer', 'tpo', 'super_admin'
+    first_name = db.Column(db.String(50))
+    last_name = db.Column(db.String(50))
+    institute = db.Column(db.String(100))  # For TPOs
+    department = db.Column(db.String(100))  # For TPOs
+    company_name = db.Column(db.String(100))  # For employers
+    company_website = db.Column(db.String(200))  # For employers
+    is_active = db.Column(db.Boolean, default=True)
+    is_verified = db.Column(db.Boolean, default=False)
+    requires_password_reset = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))  # For TPOs, tracks who created them
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -76,7 +116,9 @@ def register_tpo_page():
     return render_template('register_tpo.html')
 
 @app.route('/dashboard')
-def dashboard_page():
+def dashboard():
+    # This route just renders the dashboard template
+    # No authentication required here
     return render_template('dashboard.html')
 
 @app.route('/dashboard/student')
@@ -91,6 +133,14 @@ def employee_dashboard_page():
 def tpo_dashboard_page():
     return render_template('tpo_dashboard.html')
 
+@app.route('/dashboard/super-admin')
+def super_admin_dashboard_page():
+    return render_template('super_admin_dashboard.html')
+
+@app.route('/reset-password')
+def reset_password_page():
+    return render_template('reset_password.html')
+
 # API Routes
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -99,14 +149,33 @@ def login():
     password = data.get('password')
     user_type = data.get('user_type')
     
+    print(f"Login attempt: username={username}, user_type={user_type}")
+    
     user = User.query.filter_by(username=username, user_type=user_type).first()
     
     if user and user.check_password(password):
+        if not user.is_active:
+            return jsonify({
+                'status': 'error',
+                'message': 'Account is deactivated'
+            }), 403
+        
+        if user.requires_password_reset:
+            return jsonify({
+                'status': 'error',
+                'message': 'Password reset required',
+                'requires_reset': True
+            }), 403
+        
+        # Create JWT token
         access_token = create_access_token(identity={
             'user_id': user.id,
             'username': user.username,
             'user_type': user.user_type
         })
+        
+        print(f"Login successful: username={username}, user_type={user_type}")
+        
         return jsonify({
             'status': 'success',
             'message': 'Login successful',
@@ -114,10 +183,13 @@ def login():
             'user': {
                 'id': user.id,
                 'username': user.username,
-                'user_type': user.user_type
+                'user_type': user.user_type,
+                'first_name': user.first_name,
+                'last_name': user.last_name
             }
         }), 200
     else:
+        print(f"Login failed: username={username}, user_type={user_type}")
         return jsonify({
             'status': 'error',
             'message': 'Invalid username, password, or user type'
@@ -127,8 +199,18 @@ def login():
 def register():
     data = request.get_json()
     username = data.get('username')
+    email = data.get('email')
     password = data.get('password')
     user_type = data.get('user_type')
+    first_name = data.get('first_name')
+    last_name = data.get('last_name')
+    
+    # Only allow student and employer registration
+    if user_type not in ['student', 'employer']:
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid user type for registration'
+        }), 400
     
     if User.query.filter_by(username=username).first():
         return jsonify({
@@ -136,7 +218,19 @@ def register():
             'message': 'Username already exists'
         }), 400
     
-    user = User(username=username, user_type=user_type)
+    if User.query.filter_by(email=email).first():
+        return jsonify({
+            'status': 'error',
+            'message': 'Email already exists'
+        }), 400
+    
+    user = User(
+        username=username,
+        email=email,
+        user_type=user_type,
+        first_name=first_name,
+        last_name=last_name
+    )
     user.set_password(password)
     
     db.session.add(user)
@@ -150,17 +244,128 @@ def register():
 @app.route('/api/profile', methods=['GET'])
 @jwt_required()
 def get_profile():
-    current_user = get_jwt_identity()
-    user = User.query.get(current_user['user_id'])
-    
-    return jsonify({
-        'status': 'success',
-        'user': {
-            'id': user.id,
-            'username': user.username,
-            'user_type': user.user_type
-        }
-    }), 200
+    try:
+        current_user = get_jwt_identity()
+        print(f"Profile request for user: {current_user}")
+        
+        if not current_user or 'user_id' not in current_user:
+            print("Invalid JWT payload")
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid authentication token'
+            }), 401
+        
+        user = User.query.get(current_user['user_id'])
+        
+        if not user:
+            print(f"User not found: {current_user['user_id']}")
+            return jsonify({
+                'status': 'error',
+                'message': 'User not found'
+            }), 404
+        
+        print(f"Profile found for: {user.username}, type: {user.user_type}")
+        
+        return jsonify({
+            'status': 'success',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'user_type': user.user_type,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+                'company_name': user.company_name if user.user_type == 'employer' else None,
+                'company_website': user.company_website if user.user_type == 'employer' else None
+            }
+        }), 200
+    except Exception as e:
+        print(f"Error in profile endpoint: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Internal server error'
+        }), 500
+
+@app.route('/api/profile/update', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    try:
+        current_user = get_jwt_identity()
+        
+        if not current_user or 'user_id' not in current_user:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid authentication token'
+            }), 401
+        
+        user = User.query.get(current_user['user_id'])
+        
+        if not user:
+            return jsonify({
+                'status': 'error',
+                'message': 'User not found'
+            }), 404
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'No data provided'
+            }), 400
+        
+        # Update allowed fields
+        if 'first_name' in data:
+            user.first_name = data['first_name']
+        if 'last_name' in data:
+            user.last_name = data['last_name']
+        if 'email' in data:
+            # Check if email is already in use by another user
+            existing_user = User.query.filter_by(email=data['email']).first()
+            if existing_user and existing_user.id != user.id:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Email already in use'
+                }), 400
+            user.email = data['email']
+        
+        # Update employer-specific fields
+        if user.user_type == 'employer':
+            if 'company_name' in data:
+                user.company_name = data['company_name']
+            if 'company_website' in data:
+                user.company_website = data['company_website']
+        
+        # Update TPO-specific fields
+        if user.user_type == 'tpo':
+            if 'institute' in data:
+                user.institute = data['institute']
+            if 'department' in data:
+                user.department = data['department']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Profile updated successfully',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'user_type': user.user_type,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+                'company_name': user.company_name if user.user_type == 'employer' else None,
+                'company_website': user.company_website if user.user_type == 'employer' else None,
+                'institute': user.institute if user.user_type == 'tpo' else None,
+                'department': user.department if user.user_type == 'tpo' else None
+            }
+        }), 200
+    except Exception as e:
+        print(f"Error in update profile endpoint: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Internal server error: {str(e)}'
+        }), 500
 
 # Job-related API endpoints
 @app.route('/api/jobs', methods=['POST'])
@@ -270,20 +475,25 @@ def apply_for_job(job_id):
         'message': 'Application submitted successfully'
     }), 201
 
-# Admin API route to create TPO accounts
+# Super Admin Routes
 @app.route('/api/admin/create-tpo', methods=['POST'])
 @jwt_required()
 def create_tpo():
     current_user = get_jwt_identity()
-    if current_user['user_type'] not in ['admin', 'tpo']:
+    if current_user['user_type'] != 'super_admin':
         return jsonify({
             'status': 'error',
-            'message': 'You do not have permission to access this endpoint'
+            'message': 'Only super admin can create TPO accounts'
         }), 403
     
     data = request.get_json()
     username = data.get('username')
+    email = data.get('email')
     password = data.get('password')
+    first_name = data.get('first_name')
+    last_name = data.get('last_name')
+    institute = data.get('institute')
+    department = data.get('department')
     
     if User.query.filter_by(username=username).first():
         return jsonify({
@@ -291,10 +501,26 @@ def create_tpo():
             'message': 'Username already exists'
         }), 400
     
-    tpo_user = User(username=username, user_type='tpo')
-    tpo_user.set_password(password)
+    if User.query.filter_by(email=email).first():
+        return jsonify({
+            'status': 'error',
+            'message': 'Email already exists'
+        }), 400
     
-    db.session.add(tpo_user)
+    tpo = User(
+        username=username,
+        email=email,
+        user_type='tpo',
+        first_name=first_name,
+        last_name=last_name,
+        institute=institute,
+        department=department,
+        created_by=current_user['user_id'],
+        requires_password_reset=True
+    )
+    tpo.set_password(password)
+    
+    db.session.add(tpo)
     db.session.commit()
     
     return jsonify({
@@ -302,17 +528,170 @@ def create_tpo():
         'message': 'TPO account created successfully'
     }), 201
 
-if __name__ == '__main__':
+@app.route('/api/admin/tpos', methods=['GET'])
+@jwt_required()
+def get_tpos():
+    current_user = get_jwt_identity()
+    if current_user['user_type'] != 'super_admin':
+        return jsonify({
+            'status': 'error',
+            'message': 'Only super admin can view TPO accounts'
+        }), 403
+    
+    tpos = User.query.filter_by(user_type='tpo').all()
+    return jsonify({
+        'status': 'success',
+        'tpos': [{
+            'id': tpo.id,
+            'username': tpo.username,
+            'email': tpo.email,
+            'first_name': tpo.first_name,
+            'last_name': tpo.last_name,
+            'institute': tpo.institute,
+            'department': tpo.department,
+            'is_active': tpo.is_active,
+            'is_verified': tpo.is_verified,
+            'created_at': tpo.created_at.isoformat()
+        } for tpo in tpos]
+    }), 200
+
+@app.route('/api/admin/tpo/<int:tpo_id>', methods=['PUT'])
+@jwt_required()
+def update_tpo(tpo_id):
+    current_user = get_jwt_identity()
+    if current_user['user_type'] != 'super_admin':
+        return jsonify({
+            'status': 'error',
+            'message': 'Only super admin can update TPO accounts'
+        }), 403
+    
+    tpo = User.query.get_or_404(tpo_id)
+    if tpo.user_type != 'tpo':
+        return jsonify({
+            'status': 'error',
+            'message': 'User is not a TPO'
+        }), 400
+    
+    data = request.get_json()
+    if 'is_active' in data:
+        tpo.is_active = data['is_active']
+    if 'is_verified' in data:
+        tpo.is_verified = data['is_verified']
+    if 'requires_password_reset' in data:
+        tpo.requires_password_reset = data['requires_password_reset']
+    
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'message': 'TPO account updated successfully'
+    }), 200
+
+# Password Reset Route
+@app.route('/api/reset-password', methods=['POST'])
+@jwt_required()
+def reset_password():
+    current_user = get_jwt_identity()
+    user = User.query.get(current_user['user_id'])
+    
+    if not user.requires_password_reset:
+        return jsonify({
+            'status': 'error',
+            'message': 'Password reset not required'
+        }), 400
+    
+    data = request.get_json()
+    new_password = data.get('new_password')
+    
+    user.set_password(new_password)
+    user.requires_password_reset = False
+    
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'message': 'Password reset successful'
+    }), 200
+
+@app.route('/register/student', methods=['POST'])
+def register_student():
+    data = request.get_json()
+    
+    # Check if username or email already exists
+    if User.query.filter_by(username=data['username']).first():
+        return jsonify({'error': 'Username already exists'}), 400
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({'error': 'Email already exists'}), 400
+    
+    # Create new student user
+    user = User(
+        username=data['username'],
+        email=data['email'],
+        first_name=data['first_name'],
+        last_name=data['last_name'],
+        user_type='student'
+    )
+    user.set_password(data['password'])
+    
+    try:
+        db.session.add(user)
+        db.session.commit()
+        return jsonify({'message': 'Registration successful'}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Registration failed'}), 500
+
+@app.route('/register/employer', methods=['POST'])
+def register_employer():
+    data = request.get_json()
+    
+    # Check if username or email already exists
+    if User.query.filter_by(username=data['username']).first():
+        return jsonify({'error': 'Username already exists'}), 400
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({'error': 'Email already exists'}), 400
+    
+    # Create new employer user
+    user = User(
+        username=data['username'],
+        email=data['email'],
+        first_name=data['first_name'],
+        last_name=data['last_name'],
+        company_name=data['company_name'],
+        company_website=data['company_website'],
+        user_type='employer'
+    )
+    user.set_password(data['password'])
+    
+    try:
+        db.session.add(user)
+        db.session.commit()
+        return jsonify({'message': 'Registration successful'}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Registration failed'}), 500
+
+# Initialize the database with a super admin account
+def init_db():
     with app.app_context():
         db.create_all()
         
-        # Create initial TPO account if none exists
-        if not User.query.filter_by(user_type='tpo').first():
-            default_tpo = User(username='admin_tpo', user_type='tpo')
-            default_tpo.set_password('admin123')  # Change this to a secure password
-            db.session.add(default_tpo)
+        # Create super admin if it doesn't exist
+        if not User.query.filter_by(user_type='super_admin').first():
+            super_admin = User(
+                username='admin',
+                email='admin@example.com',
+                user_type='super_admin',
+                first_name='Super',
+                last_name='Admin',
+                is_active=True,
+                is_verified=True
+            )
+            super_admin.set_password('admin123')
+            db.session.add(super_admin)
             db.session.commit()
-            print("Initial TPO account created. Username: admin_tpo, Password: admin123")
-            print("Please change this password immediately after first login!")
-    
+            print("Super admin account created. Username: admin, Password: admin123")
+
+if __name__ == '__main__':
+    init_db()
     app.run(debug=True) 
