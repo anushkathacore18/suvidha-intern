@@ -676,7 +676,7 @@ def init_db():
     with app.app_context():
         db.create_all()
         
-        # Create super admin if it doesn't exist
+        # Check if super admin exists
         if not User.query.filter_by(user_type='super_admin').first():
             super_admin = User(
                 username='admin',
@@ -693,5 +693,14 @@ def init_db():
             print("Super admin account created. Username: admin, Password: admin123")
 
 if __name__ == '__main__':
-    init_db()
-    app.run(debug=True) 
+    try:
+        # Make sure database exists first
+        from init_mysql import create_database
+        create_database()
+        print("MySQL database initialized")
+        
+        # Then initialize Flask-SQLAlchemy models
+        init_db()
+        app.run(debug=True)
+    except Exception as e:
+        print(f"Error starting application: {e}") 
