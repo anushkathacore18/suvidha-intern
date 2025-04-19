@@ -9,3 +9,8 @@ flask-cors==4.0.0
 flask-jwt-extended==4.6.0
 python-jose==3.3.0
 bcrypt==4.1.2 
+flask
+flask_sqlalchemy
+flask_jwt_extended
+werkzeug
+python-dotenv
