@@ -2,10 +2,12 @@ import os
 from flask import Flask, render_template, request, redirect, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
+from sqlalchemy.sql import text
 
 
 from dotenv import load_dotenv
 load_dotenv()
+print("DB URL:", os.getenv("MYSQL_DB_URL"))
 
 app = Flask(__name__)
 app.secret_key = 'suvidha-802'
@@ -49,6 +51,12 @@ class Project(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     project_name = db.Column(db.String(100))
     github_link = db.Column(db.String(200))
+
+class Application(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    internship_id = db.Column(db.Integer, nullable=False)
+    applied_on = db.Column(db.TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
 
 
 # ------------------ Database Initialization ------------------ #
@@ -173,6 +181,31 @@ def stu_uploads():
     certificates = Certificate.query.filter_by(user_id=user_id).all()
     projects = Project.query.filter_by(user_id=user_id).all()
     return render_template('profile.html', profile=profile, certificates=certificates, projects=projects)
+
+
+# -- Apply internship route -- #
+@app.route('/apply/<int:internship_id>', methods=['GET'])
+def apply_to_internship(internship_id):
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    user_id = session['user_id']
+
+    # Check if already applied
+    existing = Application.query.filter_by(user_id=user_id, internship_id=internship_id).first()
+    if existing:
+        return "Already applied!"
+
+    # Store application
+    new_app = Application(user_id=user_id, internship_id=internship_id)
+    db.session.add(new_app)
+    db.session.commit()
+    return "Application submitted successfully!"
+
+
+@app.route('/internships')
+def internships():
+    return render_template('internship_listing.html')
 
 
 
