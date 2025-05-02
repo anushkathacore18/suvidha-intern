@@ -43,3 +43,12 @@ CREATE TABLE Project (
     github_link VARCHAR(255) NOT NULL,
     FOREIGN KEY (user_id) REFERENCES User(id)
 );
+
+-- Save Applications
+CREATE TABLE Application (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    internship_id INT NOT NULL,
+    applied_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES User(id)
+);

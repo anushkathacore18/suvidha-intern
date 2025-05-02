@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Internship Listings</title>
-    <link rel="stylesheet" href="internship_listing.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='internship_listing.css') }}">
 </head>
 <body>
     <header>
@@ -333,7 +333,7 @@
                     </div>
                     <div class="card-footer">
                         <div class="date">Posted 1 day ago</div>
-                        <button class="apply-btn">Apply Now</button>
+                        <a href="{{ url_for('apply_to_internship', internship_id=1) }}" class="apply-btn">Apply Now</a>
                     </div>
                 </div>
             </div>
@@ -347,6 +347,6 @@
             </div>
         </section>
     </div>
-    <script src="internship_listing.js"></script>
+    <script src="{{ url_for('static', filename='internship_listing.js') }}"></script>
 </body>
 </html>
