@@ -1,0 +1,3 @@
+[33m8d62889[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mOm.B_and_Rashmi_Work[m[33m, [m[1;31morigin/main[m[33m)[m Clean up project files and update requirements
+[33m2fea02d[m Update app.py to exclusively use MySQL instead of SQLite
+[33m29f4579[m Added company information to User model and created profile update endpoint

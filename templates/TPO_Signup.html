@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Internship Portal Signup</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='TPO_Signup.css') }}">
+</head>
+<body>
+    <div class="blob blob1"></div>
+    <div class="blob blob2"></div>
+
+  <div class="login-container">
+    <h2>TPO Signup</h2>
+    {% if error %}
+    <div class="error-message">{{ error }}</div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('tpo_signup') }}">
+      <input type="email" name="email" placeholder="Official Email ID" required>
+      <input type="password" name="password" placeholder="Password" required>
+      <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+      <input type="text" name="first_name" placeholder="First Name" required>
+      <input type="text" name="last_name" placeholder="Last Name" required>
+      <input type="tel" name="mobile" placeholder="Mobile Number" required>
+      <div class="terms">
+        <input type="checkbox" id="agree" name="terms">
+        <label for="agree">I agree to the <a href="#">Terms & Conditions</a></label>
+      </div>
+      <button type="submit">Post for Free</button>
+    </form>
+    <p class="note">Already have an account? <a href="#">Login</a></p>
+  </div>
+  <script src="{{ url_for('static', filename='TPO_Signup.js') }}"></script>
+</body>
+</html>
