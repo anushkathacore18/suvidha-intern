@@ -1,135 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Internship Portal Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style1.css') }}" />
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="text-center">Login</h3>
-                    </div>
-                    <div class="card-body">
-                        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
-                        <div id="success-message" class="alert alert-success" style="display: none;"></div>
-                        <form id="loginForm">
-                            <div class="mb-3">
-                                <label for="username" class="form-label">Username</label>
-                                <input type="text" class="form-control" id="username" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Password</label>
-                                <input type="password" class="form-control" id="password" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="userType" class="form-label">User Type</label>
-                                <select class="form-select" id="userType" required>
-                                    <option value="student">Student</option>
-                                    <option value="employer">Employer</option>
-                                    <option value="tpo">TPO</option>
-                                    <option value="super_admin">Super Admin</option>
-                                </select>
-                            </div>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary">Login</button>
-                            </div>
-                        </form>
-                        <div class="mt-3 text-center">
-                            <p>Don't have an account? <a href="/register">Register here</a></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+  <!-- Decorative Blobs -->
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Check if already logged in
-        const token = localStorage.getItem('token');
-        if (token) {
-            window.location.href = '/dashboard';
-        }
+  <!-- Login Container -->
+  <div class="login-container">
+    <h1>Welcome to Suvidha</h1>
+    <div class="separator"></div> <!-- Yellow underline -->
 
-        // Show error message
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            document.getElementById('success-message').style.display = 'none';
-        }
+    <!-- Login Form -->
+    <form method="POST" action="{{ url_for('login_page') }}">
+      <div class="user-toggle">
+        <label>
+          <input type="radio" name="userType" value="student" checked /> Student
+        </label>
+        <label>
+          <input type="radio" name="userType" value="employee" /> Employee
+        </label>
+        <label>
+          <input type="radio" name="userType" value="tpo" /> TPO
+        </label>
+      </div>
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <button type="submit">Login</button>
+    </form>
 
-        // Show success message
-        function showSuccess(message) {
-            const successDiv = document.getElementById('success-message');
-            successDiv.textContent = message;
-            successDiv.style.display = 'block';
-            document.getElementById('error-message').style.display = 'none';
-        }
+    <p class="note">Don't have an account? <a href="{{ url_for('register_page') }}">Register</a></p>
+  </div>
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // Clear previous messages
-            document.getElementById('error-message').style.display = 'none';
-            document.getElementById('success-message').style.display = 'none';
-            
-            const formData = {
-                username: document.getElementById('username').value,
-                password: document.getElementById('password').value,
-                user_type: document.getElementById('userType').value
-            };
-
-            try {
-                console.log("Submitting login data:", formData);
-                
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-
-                const data = await response.json();
-                console.log("Login response:", data);
-                
-                if (response.ok) {
-                    if (data.access_token) {
-                        showSuccess('Login successful! Redirecting to dashboard...');
-                        
-                        // Clear any existing token
-                        localStorage.removeItem('token');
-                        
-                        // Store the new token
-                        localStorage.setItem('token', data.access_token);
-                        console.log("Token stored:", data.access_token.substring(0, 20) + "...");
-                        
-                        // Store user data as well
-                        if (data.user) {
-                            localStorage.setItem('user', JSON.stringify(data.user));
-                        }
-                        
-                        // Wait to ensure the token is stored
-                        setTimeout(() => {
-                            window.location.href = '/dashboard';
-                        }, 1500);
-                    } else {
-                        showError('Login successful but no token received');
-                    }
-                } else {
-                    showError(data.message || 'Login failed');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showError('An error occurred during login');
-            }
-        });
-    </script>
+  <!-- JS -->
+  <script src="{{ url_for('static', filename='login.js') }}"></script>
 </body>
-</html> 
+</html>

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
+from flask import Flask, request, jsonify, render_template, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,8 +10,16 @@ from datetime import timedelta, datetime
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)  # Generate a secure random key
+app.permanent_session_lifetime = timedelta(days=7)  # Set session lifetime
+
+# Validate and set database configuration
+database_url = os.getenv('DATABASE_URL')
+if not database_url:
+    raise ValueError("DATABASE_URL environment variable is not set")
+
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key-here')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)  # Extend token expiration to 1 day
@@ -95,8 +103,34 @@ class JobApplication(db.Model):
 def index():
     return render_template('index.html')
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login_page():
+    if request.method == 'POST':
+        user_type = request.form.get('userType')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        print(f"[LOGIN DEBUG] userType: {user_type}, email: {email}, password: {password}")
+
+        user = User.query.filter_by(email=email, user_type=user_type).first()
+        print(f"[LOGIN DEBUG] User found: {user}")
+        if user and user.check_password(password):
+            print(f"[LOGIN DEBUG] Password correct for {email}")
+            session['user_id'] = user.id
+            session['user_name'] = user.first_name
+            session['user_type'] = user.user_type
+            # Redirect to the correct dashboard
+            if user_type == 'student':
+                print("[LOGIN DEBUG] Redirecting to student_dashboard")
+                return redirect(url_for('student_dashboard'))
+            elif user_type == 'employee':
+                print("[LOGIN DEBUG] Redirecting to employee_dashboard_page")
+                return redirect(url_for('employee_dashboard_page'))
+            elif user_type == 'tpo':
+                print("[LOGIN DEBUG] Redirecting to tpo_dashboard_page")
+                return redirect(url_for('tpo_dashboard_page'))
+        else:
+            print(f"[LOGIN DEBUG] Invalid credentials for {email}")
+            return render_template('login.html', error='Invalid credentials. Please try again.')
     return render_template('login.html')
 
 @app.route('/register')
@@ -127,11 +161,15 @@ def student_dashboard_page():
 
 @app.route('/dashboard/employee')
 def employee_dashboard_page():
-    return render_template('employee_dashboard.html')
+    if 'user_id' not in session or session.get('user_type') != 'employee':
+        return redirect(url_for('login_page'))
+    return render_template('employee_dash.html')
 
 @app.route('/dashboard/tpo')
 def tpo_dashboard_page():
-    return render_template('tpo_dashboard.html')
+    if 'user_id' not in session or session.get('user_type') != 'tpo':
+        return redirect(url_for('login_page'))
+    return render_template('tpo.html')
 
 @app.route('/dashboard/super-admin')
 def super_admin_dashboard_page():
@@ -613,63 +651,377 @@ def reset_password():
         'message': 'Password reset successful'
     }), 200
 
-@app.route('/register/student', methods=['POST'])
-def register_student():
-    data = request.get_json()
-    
-    # Check if username or email already exists
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({'error': 'Username already exists'}), 400
-    if User.query.filter_by(email=data['email']).first():
-        return jsonify({'error': 'Email already exists'}), 400
-    
-    # Create new student user
-    user = User(
-        username=data['username'],
-        email=data['email'],
-        first_name=data['first_name'],
-        last_name=data['last_name'],
-        user_type='student'
-    )
-    user.set_password(data['password'])
-    
-    try:
-        db.session.add(user)
-        db.session.commit()
-        return jsonify({'message': 'Registration successful'}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': 'Registration failed'}), 500
+@app.route('/student/login', methods=['GET', 'POST'])
+def student_login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        remember = request.form.get('remember')
 
-@app.route('/register/employer', methods=['POST'])
-def register_employer():
-    data = request.get_json()
-    
-    # Check if username or email already exists
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({'error': 'Username already exists'}), 400
-    if User.query.filter_by(email=data['email']).first():
-        return jsonify({'error': 'Email already exists'}), 400
-    
-    # Create new employer user
-    user = User(
-        username=data['username'],
-        email=data['email'],
-        first_name=data['first_name'],
-        last_name=data['last_name'],
-        company_name=data['company_name'],
-        company_website=data['company_website'],
-        user_type='employer'
-    )
-    user.set_password(data['password'])
-    
-    try:
-        db.session.add(user)
-        db.session.commit()
-        return jsonify({'message': 'Registration successful'}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': 'Registration failed'}), 500
+        print(f"[LOGIN] Attempt for email: {email}")
+        user = User.query.filter_by(email=email, user_type='student').first()
+        print(f"[LOGIN] User found: {user}")
+        if user and user.check_password(password):
+            print(f"[LOGIN] Success for {email}")
+            session['user_id'] = user.id
+            session['user_name'] = user.first_name
+            session['user_type'] = 'student'
+            if remember:
+                session.permanent = True
+            return redirect(url_for('student_dashboard'))
+        else:
+            print(f"[LOGIN] Failed for {email}")
+            return render_template('stu_login.html', error='Invalid email or password')
+
+    return render_template('stu_login.html')
+
+@app.route('/student/signup', methods=['GET', 'POST'])
+def student_signup():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        terms = request.form.get('terms')
+
+        print(f"[SIGNUP] Attempt for email: {email}")
+        if User.query.filter_by(email=email, user_type='student').first():
+            print(f"[SIGNUP] Email already registered: {email}")
+            return render_template('stu_signup.html', error='Email already registered')
+
+        if password != confirm_password:
+            print(f"[SIGNUP] Passwords do not match for {email}")
+            return render_template('stu_signup.html', error='Passwords do not match')
+
+        if not terms:
+            print(f"[SIGNUP] Terms not accepted for {email}")
+            return render_template('stu_signup.html', error='Please accept terms and conditions')
+
+        new_user = User(
+            username=email,
+            email=email,
+            user_type='student',
+            first_name=first_name,
+            last_name=last_name
+        )
+        new_user.set_password(password)
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            print(f"[SIGNUP] Success for {email}")
+            return redirect(url_for('login_page'))
+        except Exception as e:
+            db.session.rollback()
+            print(f"[SIGNUP] Registration failed for {email}: {e}")
+            return render_template('stu_signup.html', error='Registration failed. Please try again.')
+
+    return render_template('stu_signup.html')
+
+@app.route('/student/registration', methods=['GET', 'POST'])
+def student_registration():
+    if request.method == 'POST':
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip()
+        contact = request.form.get('contact', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        college = request.form.get('college', '').strip()
+        branch = request.form.get('branch', '').strip()
+        year = request.form.get('year', '').strip()
+        agree = request.form.get('agree')
+
+        # Split full name
+        first_name, last_name = '', ''
+        if full_name:
+            parts = full_name.split()
+            first_name = parts[0]
+            last_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+
+        # Validation
+        if User.query.filter_by(email=email, user_type='student').first():
+            return render_template('student_registration.html', error='Email already registered')
+        if password != confirm_password:
+            return render_template('student_registration.html', error='Passwords do not match')
+        if not agree:
+            return render_template('student_registration.html', error='Please accept terms and conditions')
+        if not all([first_name, email, password, college, branch, year]):
+            return render_template('student_registration.html', error='Please fill all required fields')
+
+        new_user = User(
+            username=email,
+            email=email,
+            user_type='student',
+            first_name=first_name,
+            last_name=last_name,
+            institute=college,
+            department=branch
+        )
+        new_user.set_password(password)
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            return redirect(url_for('login_page'))
+        except Exception as e:
+            db.session.rollback()
+            return render_template('student_registration.html', error='Registration failed. Please try again.')
+    return render_template('student_registration.html')
+
+@app.route('/student/dashboard')
+def student_dashboard():
+    if 'user_id' not in session or session.get('user_type') != 'student':
+        return redirect(url_for('login_page'))
+    return render_template('stu_dash.html')
+
+@app.route('/student/logout')
+def student_logout():
+    session.clear()
+    return redirect(url_for('student_login'))
+
+@app.route('/check-session')
+def check_session():
+    return jsonify({'valid': 'user_id' in session})
+
+@app.route('/forgot-password')
+def forgot_password():
+    # Implement password reset functionality
+    return "Password reset functionality coming soon"
+
+# Placeholder routes for navigation
+@app.route('/internships')
+def internships():
+    return "Internships page coming soon"
+
+@app.route('/courses')
+def courses():
+    return "Courses page coming soon"
+
+@app.route('/offers')
+def offers():
+    return "Offers page coming soon"
+
+@app.route('/jobs')
+def jobs():
+    return "Jobs page coming soon"
+
+@app.route('/profile')
+def profile():
+    return "Profile page coming soon"
+
+@app.route('/settings')
+def settings():
+    return "Settings page coming soon"
+
+@app.route('/download-app')
+def download_app():
+    return "App download page coming soon"
+
+@app.route('/edit-resume')
+def edit_resume():
+    return "Resume editor coming soon"
+
+@app.route('/employee/signup', methods=['GET', 'POST'])
+def employee_signup():
+    if request.method == 'POST':
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        email = request.form.get('email', '').strip()
+        phone = request.form.get('phone', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        company_name = request.form.get('company_name', '').strip()
+        company_website = request.form.get('company_website', '').strip()
+        designation = request.form.get('designation', '').strip()
+        department = request.form.get('department', '').strip()
+        terms = request.form.get('terms')
+        # Placeholder for file upload
+        # verification_doc = request.files.get('verification_doc')
+
+        if User.query.filter_by(email=email, user_type='employee').first():
+            return render_template('employee_registration.html', error='Email already registered')
+        if password != confirm_password:
+            return render_template('employee_registration.html', error='Passwords do not match')
+        if not terms:
+            return render_template('employee_registration.html', error='Please accept terms and conditions')
+        if not all([first_name, last_name, email, password, company_name, department]):
+            return render_template('employee_registration.html', error='Please fill all required fields')
+
+        new_user = User(
+            username=email,
+            email=email,
+            user_type='employee',
+            first_name=first_name,
+            last_name=last_name,
+            company_name=company_name,
+            company_website=company_website,
+            department=department
+        )
+        new_user.set_password(password)
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            return redirect(url_for('login_page'))
+        except Exception as e:
+            db.session.rollback()
+            return render_template('employee_registration.html', error='Registration failed. Please try again.')
+    return render_template('employee_registration.html')
+
+@app.route('/employee/login', methods=['GET', 'POST'])
+def employee_login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        remember = request.form.get('remember')
+
+        print(f"[EMPLOYEE LOGIN] Attempt for email: {email}")
+        user = User.query.filter_by(email=email, user_type='employee').first()
+        print(f"[EMPLOYEE LOGIN] User found: {user}")
+        if user and user.check_password(password):
+            print(f"[EMPLOYEE LOGIN] Success for {email}")
+            session['user_id'] = user.id
+            session['user_name'] = user.first_name
+            session['user_type'] = 'employee'
+            if remember:
+                session.permanent = True
+            return redirect(url_for('employee_dashboard_page'))
+        else:
+            print(f"[EMPLOYEE LOGIN] Failed for {email}")
+            return render_template('employee_registration.html', error='Invalid email or password')
+
+    return render_template('employee_registration.html')
+
+@app.route('/tpo/signup', methods=['GET', 'POST'])
+def tpo_signup():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        terms = request.form.get('terms')
+
+        print(f"[TPO SIGNUP] Attempt for email: {email}")
+        if User.query.filter_by(email=email, user_type='tpo').first():
+            print(f"[TPO SIGNUP] Email already registered: {email}")
+            return render_template('TPO_Signup.html', error='Email already registered')
+
+        if password != confirm_password:
+            print(f"[TPO SIGNUP] Passwords do not match for {email}")
+            return render_template('TPO_Signup.html', error='Passwords do not match')
+
+        if not terms:
+            print(f"[TPO SIGNUP] Terms not accepted for {email}")
+            return render_template('TPO_Signup.html', error='Please accept terms and conditions')
+
+        new_user = User(
+            username=email,
+            email=email,
+            user_type='tpo',
+            first_name=first_name,
+            last_name=last_name
+        )
+        new_user.set_password(password)
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            print(f"[TPO SIGNUP] Success for {email}")
+            return redirect(url_for('login_page'))
+        except Exception as e:
+            db.session.rollback()
+            print(f"[TPO SIGNUP] Registration failed for {email}: {e}")
+            return render_template('TPO_Signup.html', error='Registration failed. Please try again.')
+
+    return render_template('TPO_Signup.html')
+
+@app.route('/tpo/login', methods=['GET', 'POST'])
+def tpo_login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        remember = request.form.get('remember')
+
+        print(f"[TPO LOGIN] Attempt for email: {email}")
+        user = User.query.filter_by(email=email, user_type='tpo').first()
+        print(f"[TPO LOGIN] User found: {user}")
+        if user and user.check_password(password):
+            print(f"[TPO LOGIN] Success for {email}")
+            session['user_id'] = user.id
+            session['user_name'] = user.first_name
+            session['user_type'] = 'tpo'
+            if remember:
+                session.permanent = True
+            return redirect(url_for('tpo_dashboard_page'))
+        else:
+            print(f"[TPO LOGIN] Failed for {email}")
+            return render_template('TPO_Signup.html', error='Invalid email or password')
+
+    return render_template('TPO_Signup.html')
+
+@app.route('/employee/logout')
+def employee_logout():
+    session.clear()
+    return redirect(url_for('index'))
+
+@app.route('/tpo/registration', methods=['GET', 'POST'])
+def tpo_registration():
+    if request.method == 'POST':
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip()
+        contact = request.form.get('contact', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        college = request.form.get('college', '').strip()
+        designation = request.form.get('designation', '').strip()
+        agree = request.form.get('agree')
+
+        print(f"[TPO REG DEBUG] full_name: {full_name}, email: {email}, contact: {contact}, password: {password}, confirm_password: {confirm_password}, college: {college}, designation: {designation}, agree: {agree}")
+
+        # Split full name
+        first_name, last_name = '', ''
+        if full_name:
+            parts = full_name.split()
+            first_name = parts[0]
+            last_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+
+        # Validation
+        if User.query.filter_by(email=email, user_type='tpo').first():
+            print("[TPO REG DEBUG] Email already registered")
+            return render_template('tpo_registration.html', error='Email already registered')
+        if password != confirm_password:
+            print("[TPO REG DEBUG] Passwords do not match")
+            return render_template('tpo_registration.html', error='Passwords do not match')
+        if not agree:
+            print("[TPO REG DEBUG] Terms not accepted")
+            return render_template('tpo_registration.html', error='Please accept terms and conditions')
+        if not all([first_name, email, password, college, designation]):
+            print("[TPO REG DEBUG] Missing required fields")
+            return render_template('tpo_registration.html', error='Please fill all required fields')
+
+        new_user = User(
+            username=email,
+            email=email,
+            user_type='tpo',
+            first_name=first_name,
+            last_name=last_name,
+            institute=college,
+            department=designation
+        )
+        new_user.set_password(password)
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            print("[TPO REG DEBUG] Registration successful, redirecting to login page")
+            return redirect(url_for('login_page'))
+        except Exception as e:
+            db.session.rollback()
+            print(f"[TPO REG DEBUG] Registration failed: {e}")
+            return render_template('tpo_registration.html', error='Registration failed. Please try again.')
+    return render_template('tpo_registration.html')
+
+@app.route('/tpo/logout')
+def tpo_logout():
+    session.clear()
+    return redirect(url_for('index'))
 
 # Initialize the database with a super admin account
 def init_db():

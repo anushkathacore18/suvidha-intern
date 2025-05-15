@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard - Suvidha</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stu_dash.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  {% if not session.get('user_id') %}
+    <script>window.location.href = "{{ url_for('login_page') }}";</script>
+  {% endif %}
+
+  <header>
+    <div class="logo">SUVIDHA</div>
+    <nav class="main-nav">
+      <a href="{{ url_for('internships') }}">Internships</a>
+      <a href="{{ url_for('courses') }}">Courses</a>
+      <a href="{{ url_for('offers') }}">Offer</a>
+      <a href="{{ url_for('jobs') }}">Jobs</a>
+    </nav>
+    <div class="user-menu">
+      <img src="{{ session.get('user_avatar', '/static/default-avatar.png') }}" alt="Profile" class="avatar">
+      <div class="dropdown">
+        <a href="{{ url_for('profile') }}">My Profile</a>
+        <a href="{{ url_for('settings') }}">Settings</a>
+        <a href="{{ url_for('student_logout') }}">Logout</a>
+      </div>
+    </div>
+    <div class="menu-toggle">
+      <i class="fas fa-bars"></i>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside class="sidebar">
+      <h3>To do list (2)</h3>
+      <div class="todo-item">
+        <a href="{{ url_for('download_app') }}">Download our App</a>
+        <p>To receive invitations and updates from employers</p>
+      </div>
+      <div class="todo-item">
+        <span class="alert">!</span>
+        <a href="{{ url_for('edit_resume') }}">Skills missing</a>
+        <p>Add your skills to resume</p>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <section class="greeting">
+        <h1>Hi, {{ session.get('user_name', 'Student') }}! 👋</h1>
+        <p>Unlock your free AI resume guide by completing your profile</p>
+      </section>
+
+      <section class="trending">
+        <h2>Trending on Suvidha 🔥</h2>
+        <div class="card-container">
+          <div class="card">
+            <h3>Master in-demand skills!</h3>
+            <p>Get accredited certification and boost your resume.</p>
+            <a href="{{ url_for('courses') }}" class="know-more">Know more</a>
+          </div>
+          <div class="card">
+            <h3>Special offer for your college</h3>
+            <p>Get FLAT 80% OFF on all online trainings</p>
+            <a href="#" class="know-more">Know more</a>
+          </div>
+          <div class="card">
+            <h3>INTERNSHIP PREMIER LEAGUE 💼</h3>
+            <p>Play big - Win even Bigger <br> Earn stipend to 2.4 lacs <br> 65,000+ internships</p>
+            <a href="#" class="know-more">Participate now</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="opportunities">
+        <h2>Latest opportunities</h2>
+        <p>Complete your profile to see personalised recommendations</p>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>Internships by places</h4>
+        <ul>
+          <li>Internship in India</li>
+          <li>Internship in Delhi</li>
+          <li>Internship in Bangalore</li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Internship by Stream</h4>
+        <ul>
+          <li>Computer Science Internship</li>
+          <li>Electronics Internship</li>
+          <li>Marketing Internship</li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Jobs by Places</h4>
+        <ul>
+          <li>Jobs in Delhi</li>
+          <li>Jobs in Mumbai</li>
+          <li>Jobs in Bangalore</li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Jobs by Stream</h4>
+        <ul>
+          <li>Marketing jobs</li>
+          <li>Content writing jobs</li>
+          <li>Web development jobs</li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Placement Guarantee Courses</h4>
+        <ul>
+          <li>Full Stack Development</li>
+          <li>Data Science</li>
+          <li>Digital Marketing</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© Copyright 2025 Suvidha (Scholiverse Educare Private Limited)</p>
+    </div>
+  </footer>
+
+  <script>
+    // Check session status periodically
+    setInterval(function() {
+      fetch("{{ url_for('check_session') }}")
+        .then(response => response.json())
+        .then(data => {
+          if (!data.valid) {
+            window.location.href = "{{ url_for('login_page') }}";
+          }
+        });
+    }, 300000); // Check every 5 minutes
+
+    // Toggle mobile menu
+    document.querySelector('.menu-toggle').addEventListener('click', function() {
+      document.querySelector('.main-nav').classList.toggle('active');
+    });
+
+    // Toggle user dropdown
+    document.querySelector('.avatar').addEventListener('click', function() {
+      document.querySelector('.dropdown').classList.toggle('active');
+    });
+  </script>
+</body>
+</html>
