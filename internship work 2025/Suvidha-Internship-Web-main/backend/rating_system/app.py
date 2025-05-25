@@ -40,17 +40,43 @@ class Profile(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), unique=True, nullable=False)
     resume_path = db.Column(db.String(200))
     user = db.relationship('User', backref=db.backref('profile', uselist=False))
-
-class Certificate(db.Model):
+   
+class Education(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    filename = db.Column(db.String(200))
+    degree = db.Column(db.String(100))  # Degree/Qualification
+    institution = db.Column(db.String(100))  # Institution Name
+    duration = db.Column(db.String(50))  # Year - Year
+    grade = db.Column(db.String(20))  # Grade/Score
+
+class Experience(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    position = db.Column(db.String(100))  # Position/Role
+    company = db.Column(db.String(100))  # Company/Organization
+    duration = db.Column(db.String(50))  # Month Year - Month Year
+    description = db.Column(db.Text)  # Description of role and responsibilities
 
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    project_name = db.Column(db.String(100))
-    github_link = db.Column(db.String(200))
+    project_name = db.Column(db.String(100))  # Project Title
+    project_type = db.Column(db.String(100))  # Project Type
+    duration = db.Column(db.String(50))  # Month Year - Month Year
+    description = db.Column(db.Text)  # Description of project, technologies, role
+
+class Skill(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    skill_name = db.Column(db.String(100))  # Skill Name
+
+class Certification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    certification_name = db.Column(db.String(100))  # Certification Name
+    issuer = db.Column(db.String(100))  # Issuing Organization
+    duration = db.Column(db.String(50))  # Month Year - Month Year (or No Expiry)
+    credential_id = db.Column(db.String(100))  # Credential ID
 
 class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -123,64 +149,143 @@ def dashboard():
         return render_template('login.html', error=f"Error loading dashboard: {str(e)}")
 
 
-#--------approute for uploading resume,certificates and project
-
-UPLOAD_FOLDER = 'uploads'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@app.route('/profile', methods=['GET', 'POST'])
-def stu_uploads():
+# ------------------ Resume page------------------ #
+@app.route('/resume', methods=['GET', 'POST'])
+def resume():
     if 'user_id' not in session:
         return redirect('/login')
-
     user_id = session['user_id']
 
     if request.method == 'POST':
-        # Handle single resume upload
-        resume = request.files.get('resume')
-        resume_path = None
+        try:
+            # Handle resume data saving
+            data = request.form.get('resume_data')
+            if data:
+                resume_data = json.loads(data)
+                
+                # Update Profile
+                profile = Profile.query.filter_by(user_id=user_id).first()
+                if not profile:
+                    profile = Profile(user_id=user_id)
+                    db.session.add(profile)
+                profile.full_name = resume_data.get('full_name')
+                profile.course_year = resume_data.get('course_year')
+                profile.email = resume_data.get('email')
+                profile.phone = resume_data.get('phone')
+                profile.location = resume_data.get('location')
 
-        if resume and allowed_file(resume.filename):
-            resume_filename = secure_filename(resume.filename)
-            resume_path = os.path.join(app.config['UPLOAD_FOLDER'], resume_filename)
-            resume.save(resume_path)
+                # Update Education
+                Education.query.filter_by(user_id=user_id).delete()
+                for edu in resume_data.get('education', []):
+                    new_edu = Education(
+                        user_id=user_id,
+                        degree=edu.get('degree'),
+                        institution=edu.get('institution'),
+                        duration=edu.get('duration'),
+                        grade=edu.get('grade')
+                    )
+                    db.session.add(new_edu)
 
-            profile = Profile.query.filter_by(user_id=user_id).first()
-            if profile:
-                profile.resume_path = resume_path
-            else:
-                profile = Profile(user_id=user_id, resume_path=resume_path)
-                db.session.add(profile)
+                # Update Experience
+                Experience.query.filter_by(user_id=user_id).delete()
+                for exp in resume_data.get('experience', []):
+                    new_exp = Experience(
+                        user_id=user_id,
+                        position=exp.get('position'),
+                        company=exp.get('company'),
+                        duration=exp.get('duration'),
+                        description=exp.get('description')
+                    )
+                    db.session.add(new_exp)
 
-        # Handle multiple certificate uploads
-        certificate_files = request.files.getlist('certifications')
-        for cert_file in certificate_files:
-            if cert_file and allowed_file(cert_file.filename):
-                cert_filename = secure_filename(cert_file.filename)
-                cert_path = os.path.join(app.config['UPLOAD_FOLDER'], cert_filename)
-                cert_file.save(cert_path)
-                new_cert = Certificate(user_id=user_id, filename=cert_path)
-                db.session.add(new_cert)
+                # Update Projects
+                Project.query.filter_by(user_id=user_id).delete()
+                for proj in resume_data.get('projects', []):
+                    new_proj = Project(
+                        user_id=user_id,
+                        project_name=proj.get('project_name'),
+                        project_type=proj.get('project_type'),
+                        duration=proj.get('duration'),
+                        description=proj.get('description')
+                    )
+                    db.session.add(new_proj)
 
-        # Handle multiple projects
-        project_names = request.form.getlist('project_name')
-        github_links = request.form.getlist('github_link')
-        for pname, glink in zip(project_names, github_links):
-            if pname.strip() != '' and glink.strip() != '':
-                new_project = Project(user_id=user_id, project_name=pname, github_link=glink)
-                db.session.add(new_project)
+                # Update Skills
+                Skill.query.filter_by(user_id=user_id).delete()
+                for skill in resume_data.get('skills', []):
+                    new_skill = Skill(user_id=user_id, skill_name=skill)
+                    db.session.add(new_skill)
 
-        db.session.commit()
-        return redirect('/dashboard')
+                # Update Certifications
+                Certification.query.filter_by(user_id=user_id).delete()
+                for cert in resume_data.get('certifications', []):
+                    new_cert = Certification(
+                        user_id=user_id,
+                        certification_name=cert.get('certification_name'),
+                        issuer=cert.get('issuer'),
+                        duration=cert.get('duration'),
+                        credential_id=cert.get('credential_id')
+                    )
+                    db.session.add(new_cert)
 
+                # Handle resume file upload
+                resume_file = request.files.get('resume_file')
+                if resume_file and allowed_file(resume_file.filename):
+                    filename = secure_filename(resume_file.filename)
+                    resume_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    resume_file.save(resume_path)
+                    profile.resume_path = resume_path
+
+                db.session.commit()
+                return jsonify({'status': 'success', 'message': 'Resume saved successfully'})
+
+            return jsonify({'status': 'error', 'message': 'No valid data provided'})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'status': 'error', 'message': f"Error: {str(e)}"})
+
+    # GET: Render resume edit page with existing data
     profile = Profile.query.filter_by(user_id=user_id).first()
-    certificates = Certificate.query.filter_by(user_id=user_id).all()
+    educations = Education.query.filter_by(user_id=user_id).all()
+    experiences = Experience.query.filter_by(user_id=user_id).all()
     projects = Project.query.filter_by(user_id=user_id).all()
-    return render_template('profile.html', profile=profile, certificates=certificates, projects=projects)
+    skills = Skill.query.filter_by(user_id=user_id).all()
+    certifications = Certification.query.filter_by(user_id=user_id).all()
+    
+    resume_data = {
+        'full_name': profile.full_name if profile else '',
+        'course_year': profile.course_year if profile else '',
+        'email': profile.email if profile else '',
+        'phone': profile.phone if profile else '',
+        'location': profile.location if profile else '',
+        'education': [{
+            'degree': edu.degree,
+            'institution': edu.institution,
+            'duration': edu.duration,
+            'grade': edu.grade
+        } for edu in educations],
+        'experience': [{
+            'position': exp.position,
+            'company': exp.company,
+            'duration': exp.duration,
+            'description': exp.description
+        } for exp in experiences],
+        'projects': [{
+            'project_name': proj.project_name,
+            'project_type': proj.project_type,
+            'duration': proj.duration,
+            'description': proj.description
+        } for proj in projects],
+        'skills': [skill.skill_name for skill in skills],
+        'certifications': [{
+            'certification_name': cert.certification_name,
+            'issuer': cert.issuer,
+            'duration': cert.duration,
+            'credential_id': cert.credential_id
+        } for cert in certifications]
+    }
+    
+    return render_template('Resume_edit.html', resume_data=resume_data)
 
 
 # -- Apply internship route -- #
