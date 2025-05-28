@@ -17,21 +17,38 @@ CREATE TABLE Rating (
     FOREIGN KEY (to_id) REFERENCES User(id)
 );
 
--- query to upload single resume and multiple projects and Certificates--
-
--- Profile Table (1 resume per user)
+-- Profile Table (1 resume per user, with personal details)
 CREATE TABLE Profile (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL UNIQUE,
     resume_path VARCHAR(255),
+    full_name VARCHAR(100),
+    course_year VARCHAR(100),
+    email VARCHAR(100),
+    phone VARCHAR(20),
+    location VARCHAR(100),
     FOREIGN KEY (user_id) REFERENCES User(id)
 );
 
--- Certificates Table (multiple per user)
-CREATE TABLE Certificate (
+-- Education Table (multiple per user)
+CREATE TABLE Education (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    filename VARCHAR(255) NOT NULL,
+    degree VARCHAR(100), -- Degree/Qualification
+    institution VARCHAR(100), -- Institution Name
+    duration VARCHAR(50), -- Year - Year
+    grade VARCHAR(20), -- Grade/Score
+    FOREIGN KEY (user_id) REFERENCES User(id)
+);
+
+-- Experience Table (multiple per user)
+CREATE TABLE Experience (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    position VARCHAR(100), -- Position/Role
+    company VARCHAR(100), -- Company/Organization
+    duration VARCHAR(50), -- Month Year - Month Year
+    description TEXT, -- Description of role and responsibilities
     FOREIGN KEY (user_id) REFERENCES User(id)
 );
 
@@ -39,8 +56,29 @@ CREATE TABLE Certificate (
 CREATE TABLE Project (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    project_name VARCHAR(255) NOT NULL,
-    github_link VARCHAR(255) NOT NULL,
+    project_name VARCHAR(255), -- Project Title
+    project_type VARCHAR(100), -- Project Type
+    duration VARCHAR(50), -- Month Year - Month Year
+    description TEXT, -- Description of project, technologies, role
+    FOREIGN KEY (user_id) REFERENCES User(id)
+);
+
+-- Skills Table (multiple per user)
+CREATE TABLE Skill (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    skill_name VARCHAR(100), -- Skill Name
+    FOREIGN KEY (user_id) REFERENCES User(id)
+);
+
+-- Certificates Table (Achievements & Certifications, multiple per user)
+CREATE TABLE Certificate (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    certification_name VARCHAR(100), -- Certification Name
+    issuer VARCHAR(100), -- Issuing Organization
+    duration VARCHAR(50), -- Month Year - Month Year (or No Expiry)
+    credential_id VARCHAR(100), -- Credential ID
     FOREIGN KEY (user_id) REFERENCES User(id)
 );
 
