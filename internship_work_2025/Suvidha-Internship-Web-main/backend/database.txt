@@ -1,0 +1,150 @@
+-- Suvidha Database Creation Script
+-- MySQL 8.0.41 Compatible
+
+CREATE DATABASE suvidha_db;
+USE suvidha_db;
+
+-- 1. User Authentication Table
+CREATE TABLE `user` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(100) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `role` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `email` (`email`),
+  CONSTRAINT `check_role` CHECK ((`role` in ('student','employee','tpo')))
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 2. User Profile Table
+CREATE TABLE `profile` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `resume_path` varchar(255) DEFAULT NULL,
+  `full_name` varchar(100) DEFAULT NULL,
+  `course_year` varchar(100) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `college` varchar(100) DEFAULT NULL,
+  `branch` varchar(100) DEFAULT NULL,
+  `designation` varchar(100) DEFAULT NULL,
+  `company_website` varchar(255) DEFAULT NULL,
+  `department` varchar(100) DEFAULT NULL,
+  `profile_photo` varchar(255) DEFAULT NULL,
+  `address` text,
+  `city` varchar(100) DEFAULT NULL,
+  `state` varchar(100) DEFAULT NULL,
+  `pincode` varchar(20) DEFAULT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  `graduation_year` int DEFAULT NULL,
+  `linkedin_url` varchar(255) DEFAULT NULL,
+  `github_url` varchar(255) DEFAULT NULL,
+  `about` text,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_id` (`user_id`),
+  CONSTRAINT `profile_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 3. Education Table
+CREATE TABLE `education` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `degree` varchar(100) DEFAULT NULL,
+  `institution` varchar(100) DEFAULT NULL,
+  `duration` varchar(50) DEFAULT NULL,
+  `grade` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `education_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 4. Experience Table
+CREATE TABLE `experience` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `position` varchar(100) DEFAULT NULL,
+  `company` varchar(100) DEFAULT NULL,
+  `duration` varchar(50) DEFAULT NULL,
+  `description` text,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `experience_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 5. Skills Table
+CREATE TABLE `skill` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `skill_name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `skill_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 6. Projects Table
+CREATE TABLE `project` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `project_name` varchar(255) DEFAULT NULL,
+  `project_type` varchar(100) DEFAULT NULL,
+  `duration` varchar(50) DEFAULT NULL,
+  `description` text,
+  `github_link` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `project_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 7. Certificates Table
+CREATE TABLE `certificate` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `certification_name` varchar(100) DEFAULT NULL,
+  `issuer` varchar(100) DEFAULT NULL,
+  `duration` varchar(50) DEFAULT NULL,
+  `credential_id` varchar(100) DEFAULT NULL,
+  `filename` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `certificate_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 8. Internship Table
+CREATE TABLE `internship` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `title` varchar(100) NOT NULL,
+  `description` text,
+  `company_id` int DEFAULT NULL,
+  `posted_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `company_id` (`company_id`),
+  CONSTRAINT `internship_ibfk_1` FOREIGN KEY (`company_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 9. Application Table
+CREATE TABLE `application` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `internship_id` int NOT NULL,
+  `applied_on` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `internship_id` (`internship_id`),
+  CONSTRAINT `application_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `application_ibfk_2` FOREIGN KEY (`internship_id`) REFERENCES `internship` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 10. Rating Table
+CREATE TABLE `rating` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `from_id` int NOT NULL,
+  `to_id` int NOT NULL,
+  `rating` int NOT NULL,
+  `comment` text,
+  PRIMARY KEY (`id`),
+  KEY `from_id` (`from_id`),
+  KEY `to_id` (`to_id`),
+  CONSTRAINT `rating_ibfk_1` FOREIGN KEY (`from_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `rating_ibfk_2` FOREIGN KEY (`to_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
