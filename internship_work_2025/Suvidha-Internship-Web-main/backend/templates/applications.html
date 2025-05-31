@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Applications - Suvidha</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stu_dash.css') }}">
+</head>
+<body>
+  <header>
+    <div class="logo">SUVIDHA</div>
+    <nav class="main-nav">
+      <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <main class="main-content">
+      <h2>Applications</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Branch</th>
+            <th>Internship</th>
+            <th>Applied On</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for app in applications %}
+            <tr>
+              <td>{{ app.user.profile.full_name if app.user.profile else app.user.username }}</td>
+              <td>{{ app.user.email }}</td>
+              <td>{{ app.user.profile.branch if app.user.profile else 'N/A' }}</td>
+              <td>{{ app.internship.title }}</td>
+              <td>{{ app.applied_on.strftime('%Y-%m-%d') }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5">No applications yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </main>
+  </div>
+</body>
+</html>

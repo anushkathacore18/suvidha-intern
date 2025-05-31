@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suvidha Student Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stu_dash.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <header>
+    <div class="logo">SUVIDHA</div>
+    <nav class="main-nav">
+      <a href="{{ url_for('internships') }}" class="{% if request.endpoint == 'internships' %}active{% endif %}">Internships</a>
+      <a href="{{ url_for('resume_edit') }}">Resume Builder</a>
+      <a href="#">Applications</a> <!-- Placeholder; add /applications route -->
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+    <div class="menu-toggle">
+      <i class="fas fa-bars"></i>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside class="sidebar">
+      <h3>Profile Actions</h3>
+      {% if user.profile %}
+        <div class="todo-item">
+          <a href="{{ url_for('profile') }}">Update Profile</a>
+          <p>Keep your skills, projects, and resume up to date</p>
+        </div>
+        <div class="todo-item">
+          <a href="{{ url_for('resume_edit') }}">Build Resume</a>
+          <p>Create or update your professional resume</p>
+        </div>
+        {% if not user.profile.resume_path %}
+          <div class="todo-item">
+            <span class="alert">!</span>
+            <a href="{{ url_for('resume_edit') }}">Upload Resume</a>
+            <p>Add your resume to apply for internships</p>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="todo-item">
+          <span class="alert">!</span>
+          <a href="{{ url_for('profile') }}">Complete Profile</a>
+          <p>Add your details to unlock personalized recommendations</p>
+        </div>
+      {% endif %}
+    </aside>
+
+    <main class="main-content">
+      <section class="greeting">
+        <h1>Welcome, {{ user.profile.full_name if user.profile and user.profile.full_name else user.username }}! 👋</h1>
+        {% if not user.profile %}
+          <p>Complete your profile to unlock personalized internship recommendations</p>
+        {% else %}
+          <p>Explore the latest internships and build your career</p>
+        {% endif %}
+      </section>
+
+      <section class="trending">
+        <h2>Featured Opportunities</h2>
+        <div class="card-container">
+          {% for internship in internships %}
+            {% if loop.index <= 3 %}
+              <div class="card">
+                <h3>{{ internship.title }}</h3>
+                <p>{{ internship.description|truncate(100) }}</p>
+                <a href="{{ url_for('apply_to_internship', internship_id=internship.id) }}" class="know-more">Apply Now</a>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="card">
+              <h3>No Internships Available</h3>
+              <p>Check back soon for new opportunities</p>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="ratings">
+        <h2>Your Ratings</h2>
+        {% for rating in received %}
+          <div class="rating-item">
+            <p><strong>From:</strong> {{ rating.from_user.username }}</p>
+            <p><strong>Rating:</strong> {{ rating.rating }}/5</p>
+            <p><strong>Comment:</strong> {{ rating.comment|default('No comment') }}</p>
+          </div>
+        {% else %}
+          <p>No ratings received yet.</p>
+        {% endfor %}
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>Internships by Location</h4>
+        <ul>
+          <li><a href="{{ url_for('internships') }}?location=India">Internship in India</a></li>
+          <li><a href="{{ url_for('internships') }}?location=Delhi">Internship in Delhi</a></li>
+          <li><a href="{{ url_for('internships') }}?location=Bangalore">Internship in Bangalore</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Internships by Stream</h4>
+        <ul>
+          <li><a href="{{ url_for('internships') }}?stream=Computer+Science">Computer Science</a></li>
+          <li><a href="{{ url_for('internships') }}?stream=Electronics">Electronics</a></li>
+          <li><a href="{{ url_for('internships') }}?stream=Marketing">Marketing</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>About Suvidha</h4>
+        <ul>
+          <li><a href="#">Help & Support</a></li>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© Copyright 2025 Suvidha (Scholiverse Educare Private Limited)</p>
+    </div>
+  </footer>
+
+  <script>
+    document.querySelector('.menu-toggle').addEventListener('click', function() {
+      document.querySelector('.main-nav').classList.toggle('active');
+    });
+
+    document.addEventListener('click', function(event) {
+      const isClickInsideNav = event.target.closest('.main-nav');
+      const isClickOnToggle = event.target.closest('.menu-toggle');
+      if (!isClickInsideNav && !isClickOnToggle && document.querySelector('.main-nav').classList.contains('active')) {
+        document.querySelector('.main-nav').classList.remove('active');
+      }
+    });
+  </script>
+</body>
+</html>

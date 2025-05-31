@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TPO Dashboard - Suvidha</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='tpo.css') }}"> <!-- Reuse stu_dash.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <header>
+    <div class="logo">SUVIDHA</div>
+    <nav class="main-nav">
+      <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
+      <a href="{{ url_for('post_internship') }}">Post Internship</a>
+      <a href="{{ url_for('students') }}">Students</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+    <div class="menu-toggle">
+      <i class="fas fa-bars"></i>
+    </div>
+  </header>
+
+  <div class="container">
+    <main class="main-content">
+      <section class="greeting">
+        <h1>Welcome, {{ user.profile.full_name if user.profile and user.profile.full_name else user.username }}!</h1>
+        <p>Oversee student placements and internships</p>
+      </section>
+
+      <section class="stats">
+        <div class="card">
+          <h3>Total Students</h3>
+          <p>{{ students_count }}</p>
+        </div>
+        <div class="card">
+          <h3>Internships Posted</h3>
+          <p>{{ internships_count }}</p>
+        </div>
+        <div class="card">
+          <h3>Applications</h3>
+          <p>{{ applications_count }}</p>
+        </div>
+      </section>
+
+      <section class="students">
+        <div class="section-header">
+          <h2>Student List</h2>
+          <a href="{{ url_for('post_internship') }}" class="know-more">+ Post Internship</a>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Branch</th>
+              <th>College</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in students %}
+              <tr>
+                <td>{{ student.profile.full_name if student.profile else student.username }}</td>
+                <td>{{ student.email }}</td>
+                <td>{{ student.profile.branch if student.profile else 'N/A' }}</td>
+                <td>{{ student.profile.college if student.profile else 'N/A' }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4">No students registered.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>About Suvidha</h4>
+        <ul>
+          <li><a href="#">Help & Support</a></li>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© Copyright 2025 Suvidha (Scholiverse Educare Private Limited)</p>
+    </div>
+  </footer>
+
+  <script>
+    document.querySelector('.menu-toggle').addEventListener('click', function() {
+      document.querySelector('.main-nav').classList.toggle('active');
+    });
+    document.addEventListener('click', function(event) {
+      const isClickInsideNav = event.target.closest('.main-nav');
+      const isClickOnToggle = event.target.closest('.menu-toggle');
+      if (!isClickInsideNav && !isClickOnToggle && document.querySelector('.main-nav').classList.contains('active')) {
+        document.querySelector('.main-nav').classList.remove('active');
+      }
+    });
+  </script>
+</body>
+</html>

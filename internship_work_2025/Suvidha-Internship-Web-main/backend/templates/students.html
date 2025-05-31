@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Students - Suvidha</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stu_dash.css') }}">
+</head>
+<body>
+  <header>
+    <div class="logo">SUVIDHA</div>
+    <nav class="main-nav">
+      <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <main class="main-content">
+      <h2>Student List</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Branch</th>
+            <th>College</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+            <tr>
+              <td>{{ student.profile.full_name if student.profile else student.username }}</td>
+              <td>{{ student.email }}</td>
+              <td>{{ student.profile.branch if student.profile else 'N/A' }}</td>
+              <td>{{ student.profile.college if student.profile else 'N/A' }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4">No students registered.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </main>
+  </div>
+</body>
+</html>

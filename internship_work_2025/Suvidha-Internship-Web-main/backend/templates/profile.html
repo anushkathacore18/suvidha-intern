@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Update Profile - Suvidha</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stu_dash.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    .profile-container {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 30px;
+      background: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%);
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .profile-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e6b800;
+    }
+    
+    .profile-header h1 {
+      color: #333;
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+    }
+    
+    .profile-photo-section {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+    
+    .photo-upload-container {
+      position: relative;
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      border: 4px solid #e6b800;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    
+    .photo-upload-container:hover {
+      transform: scale(1.05);
+    }
+    
+    .photo-preview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    .photo-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      color: white;
+    }
+    
+    .photo-upload-container:hover .photo-overlay {
+      opacity: 1;
+    }
+    
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+    
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      box-sizing: border-box;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #e6b800;
+      box-shadow: 0 0 0 3px rgba(230, 184, 0, 0.1);
+    }
+    
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    
+    .form-group input[type="file"] {
+      padding: 8px;
+      border: 2px dashed #ddd;
+      background: #f9f9f9;
+    }
+    
+    .btn-container {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 30px;
+    }
+    
+    .btn {
+      padding: 12px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #e6b800, #ffcc02);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #cc9900, #e6b800);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(230, 184, 0, 0.3);
+    }
+    
+    .btn-secondary {
+      background: #f5f5f5;
+      color: #333;
+      border: 2px solid #ddd;
+    }
+    
+    .btn-secondary:hover {
+      background: #e9e9e9;
+      border-color: #ccc;
+    }
+    
+    .flash-messages {
+      margin-bottom: 20px;
+    }
+    
+    .flash-success {
+      color: #2e7d32;
+      background: #e8f5e9;
+      padding: 12px 20px;
+      border-radius: 8px;
+      border-left: 4px solid #4caf50;
+    }
+    
+    .flash-error {
+      color: #d32f2f;
+      background: #ffebee;
+      padding: 12px 20px;
+      border-radius: 8px;
+      border-left: 4px solid #f44336;
+    }
+    
+    .required {
+      color: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">SUVIDHA</div>
+    <nav class="main-nav">
+      <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a href="{{ url_for('internships') }}">Internships</a>
+      <a href="{{ url_for('resume_edit') }}">Resume Builder</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+    <div class="menu-toggle">
+      <i class="fas fa-bars"></i>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="profile-container">
+      <div class="profile-header">
+        <h1><i class="fas fa-user-edit"></i> Update Your Profile</h1>
+        <p>Keep your personal information up to date</p>
+      </div>
+      
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages">
+            {% for category, message in messages %}
+              <div class="flash-{{ category }}">
+                <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }}"></i>
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      
+      <form method="POST" enctype="multipart/form-data" id="profileForm">
+        <!-- Profile Photo Section -->
+        <div class="profile-photo-section">
+          <div class="photo-upload-container" onclick="document.getElementById('profile_photo').click()">
+            <div class="photo-preview" id="photoPreview">
+              {% if user.profile and user.profile.profile_photo %}
+                <img src="{{ url_for('static', filename=user.profile.profile_photo) }}" alt="Profile Photo" style="width: 100%; height: 100%; object-fit: cover;">
+              {% else %}
+                <i class="fas fa-camera" style="font-size: 2rem; color: #999;"></i>
+                <br><span style="font-size: 0.8rem;">Click to upload photo</span>
+              {% endif %}
+            </div>
+            <div class="photo-overlay">
+              <i class="fas fa-camera"></i>
+              <span style="margin-left: 5px;">Change Photo</span>
+            </div>
+            <input type="file" id="profile_photo" name="profile_photo" accept="image/*" style="display: none;">
+          </div>
+        </div>
+
+        <!-- Basic Information -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="full_name">Full Name <span class="required">*</span></label>
+            <input type="text" id="full_name" name="full_name" value="{{ user.profile.full_name if user.profile else '' }}" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="username">Username <span class="required">*</span></label>
+            <input type="text" id="username" name="username" value="{{ user.username }}" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="email">Email Address <span class="required">*</span></label>
+            <input type="email" id="email" name="email" value="{{ user.profile.email if user.profile else user.email }}" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="phone">Mobile Number</label>
+            <input type="tel" id="phone" name="phone" value="{{ user.profile.phone if user.profile else '' }}" placeholder="+91 XXXXX XXXXX">
+          </div>
+        </div>
+
+        <!-- Address Information -->
+        <div class="form-group full-width">
+          <label for="address">Address</label>
+          <textarea name="address" id="address" placeholder="Enter your complete address">{{ user.profile.address if user.profile else '' }}</textarea>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" name="city" value="{{ user.profile.city if user.profile else '' }}">
+          </div>
+          
+          <div class="form-group">
+            <label for="state">State</label>
+            <input type="text" id="state" name="state" value="{{ user.profile.state if user.profile else '' }}">
+          </div>
+          
+          <div class="form-group">
+            <label for="pincode">Pincode</label>
+            <input type="text" id="pincode" name="pincode" value="{{ user.profile.pincode if user.profile else '' }}" pattern="[0-9]{6}">
+          </div>
+          
+          <div class="form-group">
+            <label for="country">Country</label>
+            <select id="country" name="country">
+              <option value="India" {{ 'selected' if user.profile and user.profile.country == 'India' else '' }}>India</option>
+              <option value="USA" {{ 'selected' if user.profile and user.profile.country == 'USA' else '' }}>USA</option>
+              <option value="UK" {{ 'selected' if user.profile and user.profile.country == 'UK' else '' }}>UK</option>
+              <option value="Canada" {{ 'selected' if user.profile and user.profile.country == 'Canada' else '' }}>Canada</option>
+              <option value="Australia" {{ 'selected' if user.profile and user.profile.country == 'Australia' else '' }}>Australia</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Academic Information -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="college">College/University</label>
+            <input type="text" id="college" name="college" value="{{ user.profile.college if user.profile else '' }}">
+          </div>
+          
+          <div class="form-group">
+            <label for="branch">Branch/Department</label>
+            <input type="text" id="branch" name="branch" value="{{ user.profile.branch if user.profile else '' }}" placeholder="e.g., Computer Science">
+          </div>
+          
+          <div class="form-group">
+            <label for="course_year">Course Year</label>
+            <select id="course_year" name="course_year">
+              <option value="">Select Year</option>
+              <option value="1st Year" {{ 'selected' if user.profile and user.profile.course_year == '1st Year' else '' }}>1st Year</option>
+              <option value="2nd Year" {{ 'selected' if user.profile and user.profile.course_year == '2nd Year' else '' }}>2nd Year</option>
+              <option value="3rd Year" {{ 'selected' if user.profile and user.profile.course_year == '3rd Year' else '' }}>3rd Year</option>
+              <option value="4th Year" {{ 'selected' if user.profile and user.profile.course_year == '4th Year' else '' }}>4th Year</option>
+              <option value="Graduate" {{ 'selected' if user.profile and user.profile.course_year == 'Graduate' else '' }}>Graduate</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="graduation_year">Expected Graduation Year</label>
+            <input type="number" id="graduation_year" name="graduation_year" value="{{ user.profile.graduation_year if user.profile else '' }}" min="2024" max="2030">
+          </div>
+        </div>
+
+        <!-- Social Links -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="linkedin_url">LinkedIn Profile</label>
+            <input type="url" id="linkedin_url" name="linkedin_url" value="{{ user.profile.linkedin_url if user.profile else '' }}" placeholder="https://linkedin.com/in/yourprofile">
+          </div>
+          
+          <div class="form-group">
+            <label for="github_url">GitHub Profile</label>
+            <input type="url" id="github_url" name="github_url" value="{{ user.profile.github_url if user.profile else '' }}" placeholder="https://github.com/yourusername">
+          </div>
+        </div>
+
+        <!-- About Section -->
+        <div class="form-group full-width">
+          <label for="about">About Yourself</label>
+          <textarea name="about" id="about" placeholder="Write a brief introduction about yourself, your interests, and career goals...">{{ user.profile.about if user.profile else '' }}</textarea>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="btn-container">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Save Profile
+          </button>
+          <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+          <li><a href="{{ url_for('internships') }}">Internships</a></li>
+          <li><a href="{{ url_for('resume_edit') }}">Resume Builder</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#">Help & Support</a></li>
+          <li><a href="#">Contact Us</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© Copyright 2025 Suvidha (Scholiverse Educare Private Limited)</p>
+    </div>
+  </footer>
+
+  <script>
+    // Mobile menu toggle
+    document.querySelector('.menu-toggle').addEventListener('click', function() {
+      document.querySelector('.main-nav').classList.toggle('active');
+    });
+
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', function(event) {
+      const isClickInsideNav = event.target.closest('.main-nav');
+      const isClickOnToggle = event.target.closest('.menu-toggle');
+      if (!isClickInsideNav && !isClickOnToggle && document.querySelector('.main-nav').classList.contains('active')) {
+        document.querySelector('.main-nav').classList.remove('active');
+      }
+    });
+
+    // Profile photo preview
+    document.getElementById('profile_photo').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const photoPreview = document.getElementById('photoPreview');
+          photoPreview.innerHTML = `<img src="${e.target.result}" alt="Profile Photo" style="width: 100%; height: 100%; object-fit: cover;">`;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Form validation
+    document.getElementById('profileForm').addEventListener('submit', function(event) {
+      const requiredFields = document.querySelectorAll('input[required]');
+      let isValid = true;
+
+      requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+          field.style.borderColor = '#f44336';
+          isValid = false;
+        } else {
+          field.style.borderColor = '#ddd';
+        }
+      });
+
+      if (!isValid) {
+        event.preventDefault();
+        alert('Please fill in all required fields.');
+      }
+    });
+
+    // Phone number formatting
+    document.getElementById('phone').addEventListener('input', function(e) {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 10) {
+        value = value.substring(0, 10);
+      }
+      if (value.length > 5) {
+        value = value.replace(/(\d{5})(\d{5})/, '$1 $2');
+      }
+      if (value && !value.startsWith('+91')) {
+        value = '+91 ' + value;
+      }
+      e.target.value = value;
+    });
+  </script>
+</body>
+</html>
